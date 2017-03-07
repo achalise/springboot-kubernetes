@@ -133,3 +133,9 @@ curl http://192.168.99.101:30864/user =>
 [{"id":"58bcd7ad5908010005cce257","firstName":"Arun","lastName":null,"email":null,"address":{"street1":null,"street2":null,"town":null,"postcode":null,"state":null}}]
 
 ```
+
+Finally to stop your local kubernetes cluster:
+
+```
+minikube stop
+```
