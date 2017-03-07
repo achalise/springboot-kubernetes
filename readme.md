@@ -51,4 +51,85 @@ ENTRYPOINT [ "sh", "-c", "java $JAVA_OPTS -Djava.security.egd=file:/dev/./urando
 Take note that the ``ENTRYPOINT`` in ``Dockerfile`` uses ``MONGO_URI`` environment variable for the MongoDB hostname.
 We build docker image ``achalise/spring-boot-service`` for our app using gradle task ``buildDockerImage`` available from ``se.transmode.gradle:gradle-docker:1.2``
 which is included in the build classpath.
-``docker push achalise/spring-boot-service``
+```
+	dependencies {
+		classpath("org.springframework.boot:spring-boot-gradle-plugin:${springBootVersion}")
+		classpath('se.transmode.gradle:gradle-docker:1.2')
+	}
+```
+Then log into docker, with your credentials after signing up on [docker.io](docker.io), 
+```
+docker login
+```
+And execute the following command to push image to docker registry.
+
+```docker push achalise/spring-boot-service```
+
+## Deploying on Kubernetes
+
+Now that we have image of our application available in the docker registry, we can deploy it in a kubernetes cluster.
+We will also set up a node for mongoDB to be used as backend by our application.
+
+Start local kubernetes cluster with the following command:
+
+``` minikube start```
+
+We can then launch dashboard for the cluster:
+
+```minikube dashboard```
+
+Next, set up a MongoDB node. The replication controller and service configuration to set up MongoDB pod are included
+in the project within
+``k8s/mongodb``
+
+First create a MongoDB service which will be used our application running in a different POD to connect to the mongoDB 
+server.
+
+```
+kubectl create -f mongo-service.yml
+```
+The above command will create service with the name ``mongo-service`` which is used by our app to access mongoDB database.
+In ``mongo-service.yml``, following entry assigns name to the service:
+
+```
+metadata:
+  labels:
+    name: mongo
+  name: mongo-service
+
+```
+And out application uses ``mongo-service`` as value for the environment variable ``MONGO_URI`` as described in 
+``deployment.yml``:
+
+```
+        env:
+            - name: MONGO_URI
+              value: mongo-service
+```
+Now create MongoDB instance that actually runs the database.
+
+```kubectl create -f mongo-controller.yml```
+
+Next create deployment of our application in the cluster. The config files are located in ``k8s/``
+
+```kubectl create -f deployment.yml```
+
+Above command will create two pods, now create a service to connect to these pods.
+
+```kubectl create -f service.yml```
+
+You can see description of the service with
+
+```kubectl describe service spring-boot-service```
+
+Now get the exact address of the service with
+
+```minikube service spring-boot-service```
+
+which will launch browser and point to the endpoint. For e.g. in my case,
+
+```
+curl http://192.168.99.101:30864/user =>
+[{"id":"58bcd7ad5908010005cce257","firstName":"Arun","lastName":null,"email":null,"address":{"street1":null,"street2":null,"town":null,"postcode":null,"state":null}}]
+
+```
